@@ -1,4 +1,4 @@
-﻿// How come I get harassed on discord about fixing ts but never actually see anyone ingame using it 😭, I got like 100 ppl telling me to fix it the day it broke
+// How come I get harassed on discord about fixing ts but never actually see anyone ingame using it 😭, I got like 100 ppl telling me to fix it the day it broke
 
 using BepInEx;
 using Colossal.Patches;
@@ -19,6 +19,8 @@ namespace Colossal
     }
     public class Plugin : MonoBehaviour
     {
+        public static bool VCBanBypassEnabled = false;
+
         public static bool oculus = false;
         public static GameObject ScriptHolder;
         private float X = -1;
@@ -150,7 +152,7 @@ namespace Colossal
             Page5[10] = new MenuOption { Name = "Boneless" };
             Page5[11] = new MenuOption { Name = "Back Stroke" };
 
-            Page6 = new MenuOption[13];
+            Page6 = new MenuOption[14];
             Page6[0] = new MenuOption { Name = "<---", submenu = true };
             Page6[1] = new MenuOption { Name = "Clean Groove" };
             Page6[2] = new MenuOption { Name = "Blinding Lights" };
@@ -164,6 +166,7 @@ namespace Colossal
             Page6[10] = new MenuOption { Name = "Star Power" };
             Page6[11] = new MenuOption { Name = "Floss" };
             Page6[12] = new MenuOption { Name = "Day Dream" };
+            Page6[13] = new MenuOption { Name = "VC Ban Bypass" }; // Lowk dk if this even works but its togglable next update ill make it say wether its no or off so if people can hear you enable this and if they still cant rejoin the server
 
 
             Pages[0] = Page1;
@@ -188,7 +191,7 @@ namespace Colossal
                         if (emoting) // Only run during a emote
                         {
                             // Making you float
-                            GorillaLocomotion.GTPlayer.Instance.bodyCollider.attachedRigidbody.velocity = Vector3.zero;
+                            GorillaLocomotion.GTPlayer.Instance.bodyCollider.attachedRigidbody.linearVelocity = Vector3.zero;
                             GorillaLocomotion.GTPlayer.Instance.bodyCollider.attachedRigidbody.AddForce(-Physics.gravity, ForceMode.Acceleration);
 
 
@@ -224,6 +227,11 @@ namespace Colossal
             else
             {
                 Debug.Log("[EMOTE] ScriptHolder or Menu is null");
+            }
+
+            if (VCBanBypassEnabled)
+            {
+                ColossalEmotes.Patches.VCbanbypass.VCBanBypass();
             }
         }
         #endregion
@@ -314,14 +322,14 @@ namespace Colossal
 
         public void EmoteSelect()
         {
-            if (Menu == null || menuText == null) return; // This shouldnt happen but just incase it gets destroyed
+            if (Menu == null || menuText == null) return;
 
             // PC Controls
             bool bKeyHeld = UnityInput.Current.GetKey(KeyCode.B);
-            if (bKeyHeld) // Start selection when holding B
+            if (bKeyHeld)
             {
                 if (!Menu.activeSelf)
-                    Menu.SetActive(true); // Toggle the menu visibility
+                    Menu.SetActive(true);
 
                 float scrollInput = UnityInput.Current.mouseScrollDelta.y;
                 if (scrollInput > 0)
@@ -339,34 +347,45 @@ namespace Colossal
                         SelectedOptionIndex++;
                 }
 
-
-                MenuDisplay(); // Updates the displayed menu text
+                MenuDisplay();
             }
-            if (UnityInput.Current.GetKeyUp(KeyCode.B) && !coolDown) // If B key is released
+
+            if (UnityInput.Current.GetKeyUp(KeyCode.B) && !coolDown)
             {
                 if (Menu.activeSelf)
-                    Menu.SetActive(false); // Toggle the menu visibility
+                    Menu.SetActive(false);
 
                 if (!CurrentViewingMenu[SelectedOptionIndex].submenu)
-                    Emote(CurrentViewingMenu[SelectedOptionIndex].Name.Replace(" ", "").ToLower()); // Dynamically play emotes based off the name shown on the menu. If you want to add more emotes make sure the animation state name is lowercase and is the same as shown on the menu
+                {
+                    string selected = CurrentViewingMenu[SelectedOptionIndex].Name;
+
+                    if (selected == "VC Ban Bypass")
+                    {
+                        VCBanBypassEnabled = !VCBanBypassEnabled;
+                    }
+                    else
+                    {
+                        Emote(selected.Replace(" ", "").ToLower());
+                    }
+                }
                 else
                 {
                     if (CurrentViewingMenu[SelectedOptionIndex].Name.Contains(">"))
                     {
                         if (currentPage < Pages.Length - 1)
                         {
-                            currentPage++;  // Increment to the next page
+                            currentPage++;
                             CurrentViewingMenu = Pages[currentPage];
-                            SelectedOptionIndex = 0;  // Optionally reset the selected index when changing pages
+                            SelectedOptionIndex = 0;
                         }
                     }
                     else if (CurrentViewingMenu[SelectedOptionIndex].Name.Contains("<"))
                     {
                         if (currentPage > 0)
                         {
-                            currentPage--;  // Decrement to the previous page
+                            currentPage--;
                             CurrentViewingMenu = Pages[currentPage];
-                            SelectedOptionIndex = 0;  // Optionally reset the selected index when changing pages
+                            SelectedOptionIndex = 0;
                         }
                     }
                 }
@@ -374,23 +393,21 @@ namespace Colossal
                 coolDown = true;
             }
 
-            if (UnityInput.Current.GetKey(KeyCode.V) && !coolDown) // Stop Emote
+            if (UnityInput.Current.GetKey(KeyCode.V) && !coolDown)
             {
                 StopEmote();
                 coolDown = true;
             }
 
-
             // VR Controls
             float inputAxis = Controls.RightJoystickAxis().y;
             if (XRSettings.isDeviceActive)
             {
-                if (Controls.RightTrigger())  // If Right Trigger is pressed
+                if (Controls.RightTrigger())
                 {
                     if (!Menu.activeSelf)
-                        Menu.SetActive(true); // Toggle the menu visibility
+                        Menu.SetActive(true);
 
-                    // Update the selected option based on joystick input
                     if (inputAxis > 0 && !imToLazy)
                     {
                         if (SelectedOptionIndex == 0)
@@ -410,56 +427,67 @@ namespace Colossal
                         imToLazy = true;
                     }
 
-                    MenuDisplay(); // Update the displayed menu text
+                    MenuDisplay();
                     wasRightTriggerPressed = true;
                 }
-                else if (wasRightTriggerPressed && !coolDown)  // If Right Trigger was just released and no cooldown
+                else if (wasRightTriggerPressed && !coolDown)
                 {
                     if (Menu.activeSelf)
-                        Menu.SetActive(false);  // Toggle the menu visibility
-
+                        Menu.SetActive(false);
 
                     if (!CurrentViewingMenu[SelectedOptionIndex].submenu)
-                        Emote(CurrentViewingMenu[SelectedOptionIndex].Name.Replace(" ", "").ToLower()); // Dynamically play emotes based off the name shown on the menu. If you want to add more emotes make sure the animation state name is lowercase and is the same as shown on the menu
+                    {
+                        string selected = CurrentViewingMenu[SelectedOptionIndex].Name;
+
+                        if (selected == "VC Ban Bypass")
+                        {
+                            VCBanBypassEnabled = !VCBanBypassEnabled;
+                        }
+                        else
+                        {
+                            Emote(selected.Replace(" ", "").ToLower());
+                        }
+                    }
                     else
                     {
                         if (CurrentViewingMenu[SelectedOptionIndex].Name.Contains(">"))
                         {
                             if (currentPage < Pages.Length - 1)
                             {
-                                currentPage++;  // Increment to the next page
+                                currentPage++;
                                 CurrentViewingMenu = Pages[currentPage];
-                                SelectedOptionIndex = 0;  // Optionally reset the selected index when changing pages
+                                SelectedOptionIndex = 0;
                             }
                         }
                         else if (CurrentViewingMenu[SelectedOptionIndex].Name.Contains("<"))
                         {
                             if (currentPage > 0)
                             {
-                                currentPage--;  // Decrement to the previous page
+                                currentPage--;
                                 CurrentViewingMenu = Pages[currentPage];
-                                SelectedOptionIndex = 0;  // Optionally reset the selected index when changing pages
+                                SelectedOptionIndex = 0;
                             }
                         }
                     }
-
 
                     coolDown = true;
                     wasRightTriggerPressed = false;
                 }
 
-                if (Controls.LeftTrigger() && !coolDown) // Stop Emote
+                if (Controls.LeftTrigger() && !coolDown)
                 {
                     StopEmote();
                     coolDown = true;
                 }
             }
 
-
-            // Cooldown
             if (inputAxis == 0)
                 imToLazy = false;
-            if (!UnityInput.Current.GetKey(KeyCode.B) && !UnityInput.Current.GetKey(KeyCode.V) && !Controls.RightTrigger() && !Controls.LeftTrigger())
+
+            if (!UnityInput.Current.GetKey(KeyCode.B) &&
+                !UnityInput.Current.GetKey(KeyCode.V) &&
+                !Controls.RightTrigger() &&
+                !Controls.LeftTrigger())
             {
                 coolDown = false;
             }

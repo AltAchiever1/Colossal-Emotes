@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.InputSystem.HID;
 using UnityEngine.UI;
+using System.Linq;
 
 namespace Colossal
 {
@@ -33,10 +34,15 @@ namespace Colossal
 
             GameObject menuTextObj = new GameObject();
             menuTextObj.transform.SetParent(HUDObj.transform);
+
             Text MenuText = menuTextObj.AddComponent<Text>();
             MenuText.text = text;
             MenuText.fontSize = 10;
-            MenuText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+            // Idk What Font it originally used
+            Font gtagFont = Resources.FindObjectsOfTypeAll<Font>()
+                .FirstOrDefault(f => f.name.ToLower().Contains("utopium bold"));
+
             MenuText.rectTransform.sizeDelta = new Vector2(260, 180);
             MenuText.rectTransform.localScale = new Vector3(0.01f, 0.01f, 1f);
             MenuText.rectTransform.localPosition = loctrans;
